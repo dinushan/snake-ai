@@ -1,2 +1,5 @@
-game-sim-and-compiler
+snake game ai 
 =====================
+- completely random
+- simple target sensing
+- cover hamiltonian circuit
