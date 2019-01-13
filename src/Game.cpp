@@ -23,8 +23,8 @@ Game::Game():
 
     auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     m_rng.seed((unsigned long)seed);
-    m_distX = new std::uniform_int_distribution<std::mt19937::result_type>(1, BOARD_WIDTH - 1);
-    m_distY = new std::uniform_int_distribution<std::mt19937::result_type>(1, BOARD_HEIGT - 1);
+    m_distX = new std::uniform_int_distribution<std::mt19937::result_type>(0, BOARD_WIDTH - 1);
+    m_distY = new std::uniform_int_distribution<std::mt19937::result_type>(0, BOARD_HEIGT - 1);
 
     m_ai = nullptr;//new HamiltonianCircuitAI();
 }
@@ -135,16 +135,14 @@ void Game::start()
     while (isRunning())
     {
         checkInput();
-        checkCollision();
-        getAction();
+        if (checkCollision() == true) // Game Over
+        {
+            continue;
+        }
         move();
         repaint();
         SDL_Delay(GAME_SPPED);
     }
-}
-
-void Game::getAction()
-{
 }
 
 //*************************************************************************************************
@@ -172,35 +170,53 @@ void Game::checkInput()
 }
 
 //*************************************************************************************************
-void Game::checkCollision()
+bool Game::checkCollision()
 {
     if (m_board.m_x[0] == (BOARD_WIDTH - 1) && m_board.m_direction == RIGHT)
+    {
        gameOver();
+       return true;
+    }
     else if (m_board.m_x[0] == 0 && m_board.m_direction == LEFT)
-        gameOver();
+    {
+       gameOver();
+       return true;
+    }
     if (m_board.m_y[0] == (BOARD_HEIGT - 1) && m_board.m_direction == DOWN)
-        gameOver();
+    {
+       gameOver();
+       return true;
+    }
     else if (m_board.m_y[0] == 0 && m_board.m_direction == UP)
-        gameOver();
+    {
+       gameOver();
+       return true;
+    }
     if (m_board.m_GoalX == m_board.m_x[0] && m_board.m_GoalY == m_board.m_y[0])
     {
         Mix_PlayChannel(-1, m_sfxEat, 0);
         m_board.m_length++;
         m_score += 1;
+        if (m_board.m_length == CELL_COUNT)
+        {
+            gameOver();
+            return true;
+        }
+
         addGoal();
-        return;
+        return false;
     }
     if (m_board.m_length == 3)
-        return;
-    for (int i = m_board.m_length; i > 0; --i)
+        return false;
+    for (int i = m_board.m_length - 1; i > 0; --i)
     {
         if (m_board.m_x[0] == m_board.m_x[i] && m_board.m_y[0] == m_board.m_y[i])
         {
             gameOver();
+            return true;
         }
     }
-    if (m_board.m_length == CELL_COUNT - 1)
-        gameOver();
+    return false;
 }
 
 //*************************************************************************************************
@@ -216,12 +232,15 @@ void Game::gameOver()
 void Game::addGoal()
 {
     // TODO : Lookup table based goal generation
+    int iteration = 0;
     bool found = true;
     do {
         m_board.m_GoalX = (*m_distX)(m_rng);
         m_board.m_GoalY = (*m_distY)(m_rng);
+        std::cout <<  m_board.m_GoalX << "," << m_board.m_GoalY << std::endl;
         found = true;
-        for (int i = 0; i < m_board.m_length; ++i)
+        iteration++;
+        for (int i = 0; i < m_board.m_length - 1; ++i)
         {
             if (m_board.m_x[i] == m_board.m_GoalX && m_board.m_y[i] == m_board.m_GoalY)
             {
@@ -230,7 +249,31 @@ void Game::addGoal()
             }
         }
         SDL_Delay(1);
-    } while(found);
+    } while(iteration < 4 && !found);
+
+    if (!found)
+    {
+        int emptyCellCount = CELL_COUNT - m_board.m_length;
+        int emptyCells[emptyCellCount];
+        bool board[CELL_COUNT];
+        std::fill(board, board + CELL_COUNT, false);
+
+        for (int i = 0; i < m_board.m_length - 1; ++i)
+        {
+            board[m_board.m_x[i] * BOARD_WIDTH + m_board.m_y[i]] = true;
+        }
+
+        for (int i = 0, j = 0; i < CELL_COUNT; ++i)
+        {
+            if (board[i])
+                continue;
+            emptyCells[j++] = i;
+        }
+        std::uniform_int_distribution<std::mt19937::result_type> tempDist(0, emptyCellCount - 1);
+        int pos = tempDist(m_rng);
+        m_board.m_GoalX = emptyCells[pos] % BOARD_WIDTH;
+        m_board.m_GoalY = emptyCells[pos] / BOARD_WIDTH;
+    }
 }
 
 //*************************************************************************************************

@@ -54,7 +54,6 @@ namespace game{
         protected:
 
         private:
-            void getAction();
 
             SDL_Surface* m_backbuffer;
             SDL_Surface* m_background;
@@ -72,7 +71,7 @@ namespace game{
             void checkInput();
             void addGoal();
             void checkGoal();
-            void checkCollision();
+            bool checkCollision();
             void move();
             void repaint();
             void renderScore();
